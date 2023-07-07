@@ -87,6 +87,52 @@ def do_test(cfg, model):
     return results
 
 
+def log_image(it):
+    from PIL import Image
+    import numpy as np
+    from detectron2.engine import DefaultPredictor
+    from detectron2.utils.visualizer import Visualizer
+    import cv2
+
+    cfg = get_cfg()
+    add_centernet_config(cfg)
+    add_detic_config(cfg)
+    cfg.MODEL.DEVICE = "cuda"
+    cfg.merge_from_file("configs/BoxSup-C2_LCOCO_CLIP_CXT21k_640b32_4x.yaml")
+    cfg.MODEL.WEIGHTS = "/root/Detic/output/Detic/BoxSup-C2_LCOCO_CLIP_CXT21k_640b32_4x/last_checkpoint"
+    cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.5  # set threshold for this model
+    cfg.MODEL.ROI_BOX_HEAD.ZEROSHOT_WEIGHT_PATH = "rand"
+    cfg.MODEL.ROI_HEADS.ONE_CLASS_PER_PROPOSAL = True  # For better visualization purpose. Set to False for all classes.
+    predictor = DefaultPredictor(cfg)
+    BUILDIN_CLASSIFIER = {
+        "lvis": "datasets/metadata/lvis_v1_clip_a+cname.npy",
+        "objects365": "datasets/metadata/o365_clip_a+cnamefix.npy",
+        "openimages": "datasets/metadata/oid_clip_a+cname.npy",
+        "coco": "datasets/metadata/coco_clip_a+cname.npy",
+    }
+
+    BUILDIN_METADATA_PATH = {
+        "lvis": "lvis_v1_val",
+        "objects365": "objects365_v2_val",
+        "openimages": "oid_val_expanded",
+        "coco": "coco_2017_val",
+    }
+    vocabulary = "lvis"  # change to 'lvis', 'objects365', 'openimages', or 'coco'
+    metadata = MetadataCatalog.get(BUILDIN_METADATA_PATH[vocabulary])
+    classifier = BUILDIN_CLASSIFIER[vocabulary]
+    num_classes = len(metadata.thing_classes)
+    reset_cls_test(predictor.model, classifier, num_classes)
+    im = cv2.imread("./desk.jpg")
+
+    outputs = predictor(im)
+    v = Visualizer(im[:, :, ::-1], metadata)
+    out = v.draw_instance_predictions(outputs["instances"].to("cpu"))
+    img = Image.fromarray(np.uint8(out.get_image())).convert("RGB")
+    imgs = []
+    imgs.append(vessl.Image(img, caption=f"iteration: {it}"))
+    vessl.log(payload={"val image": imgs})
+
+
 def do_train(cfg, model, resume=False):
     model.train()
     if cfg.SOLVER.USE_CUSTOM_SOLVER:
@@ -170,7 +216,8 @@ def do_train(cfg, model, resume=False):
             if iteration % LOG_INTERVAL == 0:
                 vessl.log(step=iteration, payload=loss_dict)
                 vessl.log(step=iteration, payload={"lr": optimizer.param_groups[0]["lr"]})
-
+            if iteration % cfg.SOLVER.CHECKPOINT_PERIOD == 0:
+                log_image(iteration)
             step_time = step_timer.seconds()
             storage.put_scalars(time=step_time)
             data_timer.reset()
