@@ -99,7 +99,8 @@ def log_image(it):
     add_detic_config(cfg)
     cfg.MODEL.DEVICE = "cuda"
     cfg.merge_from_file("configs/BoxSup-C2_LCOCO_CLIP_CXT21k_640b32_4x.yaml")
-    cfg.MODEL.WEIGHTS = "/root/Detic/output/Detic/BoxSup-C2_LCOCO_CLIP_CXT21k_640b32_4x/last_checkpoint"
+    checkpoint_name = "model_" + "0" * (7 - len(str(it))) + str(it) + ".pth"
+    cfg.MODEL.WEIGHTS = f"/root/Detic/output/Detic/BoxSup-C2_LCOCO_CLIP_CXT21k_640b32_4x/{checkpoint_name}"
     cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.5  # set threshold for this model
     cfg.MODEL.ROI_BOX_HEAD.ZEROSHOT_WEIGHT_PATH = "rand"
     cfg.MODEL.ROI_HEADS.ONE_CLASS_PER_PROPOSAL = True  # For better visualization purpose. Set to False for all classes.
