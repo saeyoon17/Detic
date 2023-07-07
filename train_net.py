@@ -181,6 +181,7 @@ def do_train(cfg, model, resume=False):
         scaler = GradScaler()
 
     LOG_INTERVAL = 500
+    vessl.init()
     logger.info("Starting training from iteration {}".format(start_iter))
     with EventStorage(start_iter) as storage:
         step_timer = Timer()
